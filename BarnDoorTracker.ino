@@ -3,7 +3,7 @@
  * PIN_STEP - Pin on Arduino to which the step pin is connected.
  * PIN_DIRECTION - Pin on Arduino on which direction pin is connected.
  * THREAD_ROD_PITCH - The pitch in um for the threaded rod.
- * STEPS_PER_REVOLUTION - Number of steps for 1 revolution. This is 
+ * STEPS_PER_REVOLUTION - Number of steps for 1 revolution. This is
  *                      dependant on the driver used. For Easy Driver - 1600
  * BASE_ARM_LENGTH - Length of one of the similar arms in the isosceles triangle.
  * ANGLE_PER_SECOND - Angle to be traversed by the earth's rotation in 1 sec.
@@ -17,11 +17,11 @@
 
 /* If #define Debug exists, debug_print will work. */
 /* Comment out the line below to stop debug output */
-#define DEBUG 
+#define DEBUG
 #ifdef DEBUG
 #define debug_print(m) Serial.print(m)
 #else
-#define debug_print(m) 
+#define debug_print(m)
 #endif
 
 /* Finite State Machine - Globals */
@@ -42,7 +42,7 @@ AccelStepper stepper(AccelStepper::DRIVER, 9, 8);
 /* Tracker */
 #define BASE_ARM_LENGTH 400 /* mm */
 #define ANGLE_PER_SECOND 0.0041780 /* degrees/sec */
-#define RAD(deg) (deg*PI/180) 
+#define RAD(deg) (deg*PI/180)
 #define START_ANGLE 0 /* Angle at which we start */
 #define CALCULATION_INTERVAL 10 /* seconds */
 
@@ -57,7 +57,7 @@ unsigned int tracker_start_time=0;
 double tracker_existing_rod_length = 2 * BASE_ARM_LENGTH *
                                 sin(START_ANGLE/(2*3.14156));
 
-/* 
+/*
  * Calculate what the length of the rod should be at that
  * particular time
  *
@@ -74,7 +74,7 @@ unsigned int calculate_length_of_rod(int time)
   return 2 * BASE_ARM_LENGTH * sin(RAD(angle/2)) * 1000;
 }
 
-/* 
+/*
  * Called to rotate the stepper motor to move the rod
  * by the required distance.
  *
