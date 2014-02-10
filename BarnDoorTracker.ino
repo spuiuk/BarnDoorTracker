@@ -24,6 +24,8 @@
 #define debug_print(m)
 #endif
 
+#define BUTTON_PIN 13
+
 /* Finite State Machine - Globals */
 unsigned int stepper_state;
 #define STEPPER_STATE_INIT 0
@@ -57,6 +59,12 @@ unsigned int tracker_start_time=0;
 double tracker_existing_rod_length = 2 * BASE_ARM_LENGTH *
                                 sin(START_ANGLE/(2*3.14156));
 
+/* returns seconds from millis */
+unsigned long secs(void)
+{
+  return (unsigned long) millis()/1000;
+}
+
 /*
  * Calculate what the length of the rod should be at that
  * particular time
@@ -83,22 +91,19 @@ unsigned int calculate_length_of_rod(int time)
  */
 double move_arm(unsigned int length)
 {
-  static unsigned long total;
   unsigned int steps_required;
   float speed;
 
-  total += length;
-
   stepper_state = STEPPER_STATE_RUN;
   steps_required = length * steps_per_um;
-  speed = (float) (stepper.distanceToGo()+ steps_required)/CALCULATION_INTERVAL;
+  speed = (float) (steps_required)/CALCULATION_INTERVAL;
 
   debug_print("length: "); debug_print(length); debug_print("\n");
   debug_print("Number of steps: "); debug_print(steps_required); debug_print("\n");
   debug_print("speed: "); debug_print(speed); debug_print(" steps/second\n");
 
   stepper.move(steps_required);
-  stepper.setSpeed(speed);
+  stepper.setSpeed(-1 * speed);
 
   return (double)steps_required/steps_per_um;
 }
@@ -107,10 +112,52 @@ void setup(void)
 {
   Serial.begin(9600);
   stepper_state = STEPPER_STATE_INIT;
+  pinMode(BUTTON_PIN, INPUT);
 }
 
+unsigned long button_press_time = 0;
+int long_press = 0;
 void loop(void)
 {
+  int button = digitalRead(BUTTON_PIN);
+  int ms;
+
+  if (button == HIGH) {
+    if(!button_press_time) {
+      debug_print("First press\n");
+      button_press_time = millis();
+    } else if ((long_press == 0) && (millis() - button_press_time) > 2000) {
+      debug_print("Start long press: "); debug_print(button_press_time); debug_print("\n");
+      /* long press */
+      long_press = 1;
+      tracker_state = TRACKER_STATE_REVERSE;
+      Tracker_FSM.Set(TrackerTrackReverse);
+    }
+  } else if(button_press_time != 0) {
+    /* Button pressed and released */
+    stepper.stop();
+    /* Reset button_press_time */
+    button_press_time = 0;
+
+    /* If it was a long press, just reset long_press */
+    if (long_press) {
+      debug_print("Stop long press\n");
+      long_press = 0;
+      tracker_state = TRACKER_STATE_SLEEP;
+      stepper.stop();
+    } else { /* Short press */
+      debug_print("Short press\n");
+      if (tracker_state == TRACKER_STATE_SLEEP)
+        tracker_state = TRACKER_STATE_TRACK;
+      else {
+        tracker_state = TRACKER_STATE_SLEEP;
+      }
+    }
+    Stepper_FSM.Set(StepperInit);
+    Tracker_FSM.Set(TrackerSleepState);
+    //debug_print("end button low: "); debug_print(button_press_time); debug_print("\n");
+  }
+
   EXEC(Tracker_FSM);
   EXEC(Stepper_FSM);
   //stepper.runSpeed();
@@ -121,9 +168,9 @@ State StepperInit()
 {
   debug_print("Stepper Init\n");
 
-  stepper_state = STEPPER_STATE_INIT;
+  stepper_state = STEPPER_STATE_SLEEP;
   stepper.setMaxSpeed(3000);
-  stepper.setAcceleration(1000);
+  stepper.setAcceleration(10);
 
   Stepper_FSM.Set(StepperSleepState);
 }
@@ -144,7 +191,7 @@ State StepperSleepState()
 
 State StepperRun()
 {
-  //debug_print("Stepper Run\n");
+//  debug_print("Stepper Run\n");
   stepper.runSpeed();
   if(stepper.distanceToGo() == 0){
     stepper_state = STEPPER_STATE_SLEEP;
@@ -156,13 +203,13 @@ State StepperRun()
 State TrackerInit()
 {
   debug_print("Tracker Init\n");
-  tracker_state = TRACKER_STATE_TRACK;
+  tracker_state = TRACKER_STATE_SLEEP;
   Tracker_FSM.Set(TrackerSleepState);
 }
 
 State TrackerSleepState()
 {
-//  debug_print("Tracker Sleep\n");
+  //debug_print("Tracker Sleep\n");
 
   switch(tracker_state)
   {
@@ -172,6 +219,9 @@ State TrackerSleepState()
     case TRACKER_STATE_TRACK:
       Tracker_FSM.Set(TrackerTrackInit);
       break;
+    case TRACKER_STATE_REVERSE:
+      Tracker_FSM.Set(TrackerTrackReverse);
+      break;
   }
 }
 
@@ -180,7 +230,7 @@ State TrackerTrackInit()
   debug_print("Tracker Track Init\n");
   tracker_existing_rod_length = 2 * BASE_ARM_LENGTH *
                                 sin(START_ANGLE/(2*3.14156));
-  tracker_start_time = millis();
+  tracker_start_time = secs();
   Tracker_FSM.Set(TrackerTrack);
 }
 
@@ -190,7 +240,7 @@ State TrackerTrack()
   unsigned int time_run;
   double length, length_to_move;
 
-  time_run = (millis() - tracker_start_time)/1000;
+  time_run = secs() - tracker_start_time;
   //Add next interval
   time_run += CALCULATION_INTERVAL;
   length = calculate_length_of_rod(time_run);
@@ -207,3 +257,12 @@ State TrackerTrackWait()
     Tracker_FSM.Set(TrackerTrack);
 }
 
+State TrackerTrackReverse()
+{
+  stepper.setAcceleration(1000);
+  if (stepper_state != STEPPER_STATE_RUN) {
+    stepper_state = STEPPER_STATE_RUN;
+    stepper.move(1600);
+    stepper.setSpeed(3000);
+  }
+}
