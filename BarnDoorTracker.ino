@@ -228,8 +228,7 @@ State TrackerSleepState()
 State TrackerTrackInit()
 {
   debug_print("Tracker Track Init\n");
-  tracker_existing_rod_length = 2 * BASE_ARM_LENGTH *
-                                sin(START_ANGLE/(2*3.14156));
+  tracker_existing_rod_length = calculate_length_of_rod(0);
   tracker_start_time = secs();
   Tracker_FSM.Set(TrackerTrack);
 }
@@ -244,7 +243,10 @@ State TrackerTrack()
   //Add next interval
   time_run += CALCULATION_INTERVAL;
   length = calculate_length_of_rod(time_run);
+  debug_print("length calculated: ");debug_print(length); debug_print("\n");
+  debug_print("existing length: ");debug_print(tracker_existing_rod_length); debug_print("\n");
   length_to_move = length - tracker_existing_rod_length;
+  debug_print("length to move: ");debug_print(length_to_move); debug_print("\n");
   tracker_existing_rod_length += move_arm(length_to_move);
 
   Tracker_FSM.Set(TrackerTrackWait);
