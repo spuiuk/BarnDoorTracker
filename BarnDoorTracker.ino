@@ -42,10 +42,10 @@ double steps_per_um = (double)STEPS_PER_REVOLUTION/THREAD_ROD_PITCH;
 AccelStepper stepper(AccelStepper::DRIVER, 9, 8);
 
 /* Tracker */
-#define BASE_ARM_LENGTH 400 /* mm */
+#define BASE_ARM_LENGTH 450 /* mm */
 #define ANGLE_PER_SECOND 0.0041780 /* degrees/sec */
 #define RAD(deg) (deg*PI/180)
-#define START_ANGLE 0 /* Angle at which we start */
+#define START_ANGLE 5 /* Angle at which we start */
 #define CALCULATION_INTERVAL 10 /* seconds */
 
 unsigned int tracker_state;
